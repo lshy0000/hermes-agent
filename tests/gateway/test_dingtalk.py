@@ -80,32 +80,47 @@ class TestDingTalkAdapterInit:
 
 class TestExtractText:
 
-    def test_extracts_dict_text(self):
+    def test_extracts_text_from_chatbot_message(self):
+        from dingtalk_stream.chatbot import ChatbotMessage
         from gateway.platforms.dingtalk import DingTalkAdapter
-        msg = MagicMock()
-        msg.text = {"content": "  hello world  "}
-        msg.rich_text = None
+        msg = ChatbotMessage.from_dict({
+            "msgtype": "text",
+            "text": {"content": "  hello world  "},
+            "senderNick": "test",
+            "conversationType": "1",
+        })
         assert DingTalkAdapter._extract_text(msg) == "hello world"
 
-    def test_extracts_string_text(self):
+    def test_extracts_rich_text_from_chatbot_message(self):
+        from dingtalk_stream.chatbot import ChatbotMessage
         from gateway.platforms.dingtalk import DingTalkAdapter
-        msg = MagicMock()
-        msg.text = "plain text"
-        msg.rich_text = None
-        assert DingTalkAdapter._extract_text(msg) == "plain text"
-
-    def test_falls_back_to_rich_text(self):
-        from gateway.platforms.dingtalk import DingTalkAdapter
-        msg = MagicMock()
-        msg.text = ""
-        msg.rich_text = [{"text": "part1"}, {"text": "part2"}, {"image": "url"}]
+        msg = ChatbotMessage.from_dict({
+            "msgtype": "richText",
+            "content": {"richText": [
+                {"text": "part1"}, {"text": "part2"}, {"image": "url"}
+            ]},
+            "senderNick": "test",
+            "conversationType": "1",
+        })
         assert DingTalkAdapter._extract_text(msg) == "part1 part2"
 
     def test_returns_empty_for_no_content(self):
+        from dingtalk_stream.chatbot import ChatbotMessage
         from gateway.platforms.dingtalk import DingTalkAdapter
-        msg = MagicMock()
-        msg.text = ""
-        msg.rich_text = None
+        msg = ChatbotMessage.from_dict({
+            "msgtype": "text",
+            "text": {"content": ""},
+            "senderNick": "test",
+            "conversationType": "1",
+        })
+        assert DingTalkAdapter._extract_text(msg) == ""
+
+    def test_returns_empty_for_unknown_msgtype(self):
+        from dingtalk_stream.chatbot import ChatbotMessage
+        from gateway.platforms.dingtalk import DingTalkAdapter
+        # get_text_list() returns None for msgtypes other than text/richText
+        msg = ChatbotMessage()
+        msg.message_type = "file"  # not supported by get_text_list
         assert DingTalkAdapter._extract_text(msg) == ""
 
 
