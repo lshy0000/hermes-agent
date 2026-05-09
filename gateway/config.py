@@ -126,77 +126,7 @@ class Platform(Enum):
     WEIXIN = "weixin"
     BLUEBUBBLES = "bluebubbles"
     QQBOT = "qqbot"
-    YUANBAO = "yuanbao"
-    @classmethod
-    def _missing_(cls, value):
-        """Accept unknown platform names only for known plugin adapters.
-
-        Creates a pseudo-member cached in ``_value2member_map_`` so that
-        ``Platform("irc") is Platform("irc")`` holds True (identity-stable).
-        Arbitrary strings are rejected to prevent enum pollution.
-        """
-        if not isinstance(value, str) or not value.strip():
-            return None
-        # Normalise to lowercase to avoid case mismatches in config
-        value = value.strip().lower()
-        # Check cache first (another call may have created it already)
-        if value in cls._value2member_map_:
-            return cls._value2member_map_[value]
-
-        # Only create pseudo-members for bundled plugin platforms (discovered
-        # via filesystem scan) or runtime-registered plugin platforms.
-        global _Platform__bundled_plugin_names
-        if _Platform__bundled_plugin_names is None:
-            _Platform__bundled_plugin_names = cls._scan_bundled_plugin_platforms()
-        if value in _Platform__bundled_plugin_names:
-            pseudo = object.__new__(cls)
-            pseudo._value_ = value
-            pseudo._name_ = value.upper().replace("-", "_").replace(" ", "_")
-            cls._value2member_map_[value] = pseudo
-            cls._member_map_[pseudo._name_] = pseudo
-            return pseudo
-
-        # Runtime-registered plugins (e.g. user-installed, discovered after
-        # the enum was defined).
-        try:
-            from gateway.platform_registry import platform_registry
-            if platform_registry.is_registered(value):
-                pseudo = object.__new__(cls)
-                pseudo._value_ = value
-                pseudo._name_ = value.upper().replace("-", "_").replace(" ", "_")
-                cls._value2member_map_[value] = pseudo
-                cls._member_map_[pseudo._name_] = pseudo
-                return pseudo
-        except Exception:
-            pass
-
-        return None
-
-    @classmethod
-    def _scan_bundled_plugin_platforms(cls) -> set:
-        """Return names of bundled platform plugins under ``plugins/platforms/``."""
-        names: set = set()
-        try:
-            platforms_dir = Path(__file__).parent.parent / "plugins" / "platforms"
-            if platforms_dir.is_dir():
-                for child in platforms_dir.iterdir():
-                    if (
-                        child.is_dir()
-                        and (child / "__init__.py").exists()
-                        and (
-                            (child / "plugin.yaml").exists()
-                            or (child / "plugin.yml").exists()
-                        )
-                    ):
-                        names.add(child.name.lower())
-        except Exception:
-            pass
-        return names
-
-
-# Snapshot of built-in platform values before any dynamic _missing_ lookups.
-# Used to distinguish real platforms from arbitrary strings.
-_BUILTIN_PLATFORM_VALUES = frozenset(m.value for m in Platform.__members__.values())
+    CLAWITH = "clawith"
 
 
 @dataclass

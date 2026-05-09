@@ -1484,32 +1484,72 @@ async def _send_homeassistant(token, extra, chat_id, message):
 
 
 async def _send_dingtalk(extra, chat_id, message):
-    """Send via DingTalk robot webhook.
+    """Send via DingTalk Open API (supports both 1v1 and Group chats).
 
-    Note: The gateway's DingTalk adapter uses per-session webhook URLs from
-    incoming messages (dingtalk-stream SDK).  For cross-platform send_message
-    delivery we use a static robot webhook URL instead, which must be
-    configured via ``DINGTALK_WEBHOOK_URL`` env var or ``webhook_url`` in the
-    platform's extra config.
+    Uses the DingTalk Open API (batchSend for users, groupMessages for groups)
+    instead of the deprecated/limited static Webhook.
     """
     try:
         import httpx
     except ImportError:
         return {"error": "httpx not installed"}
     try:
-        webhook_url = extra.get("webhook_url") or os.getenv("DINGTALK_WEBHOOK_URL", "")
-        if not webhook_url:
-            return {"error": "DingTalk not configured. Set DINGTALK_WEBHOOK_URL env var or webhook_url in dingtalk platform extra config."}
+        # Read credentials from environment
+        client_id = os.getenv("DINGTALK_CLIENT_ID", "")
+        client_secret = os.getenv("DINGTALK_CLIENT_SECRET", "")
+        if not client_id or not client_secret:
+            return {"error": "DingTalk credentials missing. Set DINGTALK_CLIENT_ID and DINGTALK_CLIENT_SECRET."}
+
+        # 1. Get Access Token
         async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                webhook_url,
-                json={"msgtype": "text", "text": {"content": message}},
+            token_resp = await client.post(
+                "https://api.dingtalk.com/v1.0/oauth2/accessToken",
+                json={"appKey": client_id, "appSecret": client_secret},
             )
-            resp.raise_for_status()
+            if token_resp.status_code != 200:
+                return _error(f"DingTalk token request failed: {token_resp.status_code}")
+            token_data = token_resp.json()
+            access_token = token_data.get("accessToken")
+            if not access_token:
+                return _error(f"DingTalk: no accessToken in response")
+
+            headers = {
+                "Content-Type": "application/json",
+                "x-acs-dingtalk-access-token": access_token,
+            }
+
+            # 2. Detect if target is a Group (cid) or User (numeric ID)
+            import json
+            if chat_id.startswith("cid"):
+                # Group Message API
+                url = "https://api.dingtalk.com/v1.0/robot/groupMessages/send"
+                payload = {
+                    "robotCode": client_id,
+                    "openConversationId": chat_id,
+                    "msgKey": "sampleText",
+                    "msgParam": json.dumps({"content": message}),
+                }
+            else:
+                # 1v1 Message API (requires numeric User ID)
+                url = "https://api.dingtalk.com/v1.0/robot/oToMessages/batchSend"
+                payload = {
+                    "robotCode": client_id,
+                    "userIds": [chat_id],
+                    "msgKey": "sampleText",
+                    "msgParam": json.dumps({"content": message}),
+                }
+
+            resp = await client.post(url, headers=headers, json=payload)
+            if resp.status_code not in (200, 201):
+                return _error(f"DingTalk API error ({resp.status_code}): {resp.text}")
+            
             data = resp.json()
-            if data.get("errcode", 0) != 0:
-                return _error(f"DingTalk API error: {data.get('errmsg', 'unknown')}")
-        return {"success": True, "platform": "dingtalk", "chat_id": chat_id}
+            # Both APIs return success indicators, but batchSend might have invalidStaffIdList
+            if data.get("code") == "staffId.notExisted":
+                return _error(f"DingTalk send failed: User ID '{chat_id}' not found.")
+            
+            # Success if we got a processQueryKey or similar
+            return {"success": True, "platform": "dingtalk", "chat_id": chat_id, "response": str(data)}
     except Exception as e:
         return _error(f"DingTalk send failed: {e}")
 
