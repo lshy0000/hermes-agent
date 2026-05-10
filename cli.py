@@ -4949,6 +4949,27 @@ class HermesCLI:
                 "credential_pool": getattr(self, "_credential_pool", None),
             }
             effective_model = model_override or self.model
+
+            # Build CLI session context (parity with gateway's build_session_context_prompt)
+            _cli_context_parts = [
+                "## Current Session Context",
+                "",
+                "**Source:** CLI (local terminal on this machine)",
+                "**Session type:** Single-user, direct terminal access",
+                "",
+                "**Delivery options for scheduled tasks:**",
+                '- "origin" -> Local output (terminal)',
+                '- "local" -> Save to local files only',
+            ]
+            _cli_context_prompt = "\n".join(_cli_context_parts)
+
+            # Merge with user-provided system prompt (--system-prompt flag)
+            _ephemeral_parts = []
+            if self.system_prompt:
+                _ephemeral_parts.append(self.system_prompt)
+            _ephemeral_parts.append(_cli_context_prompt)
+            _ephemeral = "\n\n".join(_ephemeral_parts) if _ephemeral_parts else _cli_context_prompt
+
             self.agent = AIAgent(
                 model=effective_model,
                 api_key=runtime.get("api_key"),
@@ -4963,7 +4984,7 @@ class HermesCLI:
                 disabled_toolsets=self.disabled_toolsets,
                 verbose_logging=self.verbose,
                 quiet_mode=not self.verbose,
-                ephemeral_system_prompt=self.system_prompt if self.system_prompt else None,
+                ephemeral_system_prompt=_ephemeral or None,
                 prefill_messages=self.prefill_messages or None,
                 reasoning_config=self.reasoning_config,
                 service_tier=self.service_tier,
