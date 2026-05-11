@@ -48,8 +48,6 @@ _HERMES_CORE_TOOLS = [
     "text_to_speech",
     # Planning & memory
     "todo", "memory",
-    # Session history search
-    "session_search",
     # Clarifying questions
     "clarify",
     # Code execution + delegation
@@ -351,7 +349,6 @@ TOOLSETS = {
             "browser_press", "browser_get_images",
             "browser_vision", "browser_console", "browser_cdp", "browser_dialog",
             "todo", "memory",
-            "session_search",
             "execute_code", "delegate_task",
         ],
         "includes": []
@@ -377,8 +374,6 @@ TOOLSETS = {
             "browser_vision", "browser_console", "browser_cdp", "browser_dialog",
             # Planning & memory
             "todo", "memory",
-            # Session history search
-            "session_search",
             # Code execution + delegation
             "execute_code", "delegate_task",
             # Cronjob management
