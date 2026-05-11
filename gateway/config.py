@@ -127,6 +127,7 @@ class Platform(Enum):
     BLUEBUBBLES = "bluebubbles"
     QQBOT = "qqbot"
     CLAWITH = "clawith"
+    YUANBAO = "yuanbao"
 
 
 @dataclass
