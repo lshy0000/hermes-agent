@@ -130,6 +130,11 @@ class Platform(Enum):
     YUANBAO = "yuanbao"
 
 
+# Snapshot of built-in platform values before any dynamic _missing_ lookups.
+# Used to distinguish real platforms from arbitrary strings.
+_BUILTIN_PLATFORM_VALUES = frozenset(m.value for m in Platform.__members__.values())
+
+
 @dataclass
 class HomeChannel:
     """
